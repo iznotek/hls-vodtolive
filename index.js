@@ -1599,7 +1599,7 @@ class HLSVod {
               if (seg && seg.duration && _bw === bw) {
                 seqDur += seg.duration;
               }
-              if (seg.vodTransition) {
+              if (seg.vodTransition && segIdxVideo > 0) {
                 loop = false;
               } else {
                 if (seqDur < this.SEQUENCE_DURATION) {
