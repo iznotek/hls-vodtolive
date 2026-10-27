@@ -534,13 +534,26 @@ class HLSVod {
       this.previousVod = previousVod;
 
       if (this.calculatePDT) {
-        const previousDuration = previousVod.getNextVodDuration(); 
-        if (previousVod.timeOffset) {
-          console.log("time offset in previous vod")
-            this.timeOffset = previousVod.timeOffset + (previousDuration * 1000);
-            debug(`Calculated PDT for chained VOD: ${this.timeOffset}`);
+        const tails = Object.values(previousVod.segments).map((segments) => {
+          for (let index = segments.length - 1; index >= 0; index--) {
+            if (segments[index].uri) {
+              return segments[index];
+            }
+          }
+        });
+        if (tails.length > 0 && tails.every((segment) => segment &&
+          Number.isFinite(segment.timelinePosition) && Number.isFinite(segment.duration) && segment.duration > 0)) {
+          // Reload can import history without changing timeOffset. Use the actual media end.
+          const ends = tails.map((segment) => segment.timelinePosition + segment.duration * 1000);
+          if (!ends.every((end) => Number.isFinite(end) && end === ends[0])) {
+            throw new Error("Rendition programme ends disagree");
+          }
+          this.timeOffset = ends[0];
+          debug(`Calculated PDT for chained VOD from final segment: ${this.timeOffset}`);
+        } else if (previousVod.timeOffset) {
+          this.timeOffset = previousVod.timeOffset + previousVod.getNextVodDuration() * 1000;
+          debug(`Calculated PDT for chained VOD: ${this.timeOffset}`);
         } else {
-          console.log("No time offset in previous vod")
           this.timeOffset = Date.now();
           debug(`Previous VOD has no timeOffset, using current time for PDT: ${this.timeOffset}`);
         }
